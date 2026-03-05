@@ -199,7 +199,7 @@
 
     <script>
         // Configuration
-        const MQTT_BROKER = 'wss://broker.hivemq.com:8443/mqtt';
+        const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
         const TOPIC = 'remote-wake-up-4f91bC2-XyZ-1234';
 
         // --- PRODUCTION TARGET ---
@@ -254,7 +254,7 @@
             client = mqtt.connect(MQTT_BROKER);
 
             client.on('connect', () => {
-                statusBadge.textContent = 'Listening on HiveMQ';
+                statusBadge.textContent = 'Listening on EMQX';
                 statusBadge.classList.add('connected');
                 client.subscribe(TOPIC, (err) => {
                     if (err) console.error('Subscribe error:', err);

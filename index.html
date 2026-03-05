@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +20,8 @@
             --text-muted: #94a3b8;
         }
 
-        body, html {
+        body,
+        html {
             margin: 0;
             padding: 0;
             width: 100%;
@@ -85,9 +87,12 @@
         .awake-btn::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             border-radius: 50%;
-            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%);
             pointer-events: none;
         }
 
@@ -132,21 +137,22 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="container" id="mainCard">
         <h1>Good Morning</h1>
         <p>Tap the button below to turn off the alarm and let me know you're awake.</p>
-        
+
         <button id="awakeBtn" class="awake-btn">I'M AWAKE</button>
-        
+
         <div id="successMsg" class="success-text">✨ Signal Sent - Alarm Disabled</div>
         <div id="status" class="status">Connecting to broker...</div>
     </div>
 
     <script>
         // Configuration
-        const MQTT_BROKER = 'wss://broker.hivemq.com:8443/mqtt';
+        const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
         const TOPIC = 'remote-wake-up-4f91bC2-XyZ-1234';
 
         // Elements
@@ -158,7 +164,7 @@
         let client;
         try {
             client = mqtt.connect(MQTT_BROKER);
-            
+
             client.on('connect', () => {
                 statusEl.textContent = 'Connected. Ready to send signal.';
                 statusEl.style.color = '#10b981';
@@ -206,4 +212,5 @@
         });
     </script>
 </body>
+
 </html>
