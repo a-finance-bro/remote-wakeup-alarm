@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Monitor</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <!-- MQTT.js via CDN -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #020617;
+            --panel-bg: rgba(255, 255, 255, 0.03);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.4);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Outfit', sans-serif;
+            background: #020617;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            transition: background 0.5s ease;
+        }
+
+        body.alarm-active {
+            animation: pulse-bg 1s infinite alternate;
+        }
+
+        @keyframes pulse-bg {
+            0% {
+                background: #450a0a;
+            }
+
+            100% {
+                background: #7f1d1d;
+            }
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            padding: 50px 40px;
+            text-align: center;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: all 0.4s ease;
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        p {
+            color: var(--text-muted);
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .countdown {
+            font-size: 80px;
+            font-weight: 900;
+            line-height: 1;
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+            background: linear-gradient(to right, #60a5fa, #3b82f6);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .start-btn {
+            background: var(--primary);
+            color: #fff;
+            padding: 16px 32px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 0 20px var(--primary-glow);
+            transition: all 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px var(--primary-glow);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 99px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-top: 20px;
+            border: 1px solid var(--panel-border);
+        }
+
+        .status-badge.connected {
+            color: #10b981;
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .state-success {
+            display: none;
+            color: var(--success);
+        }
+
+        .state-success .icon {
+            font-size: 64px;
+            margin-bottom: 10px;
+        }
+
+        .state-success h2 {
+            font-size: 32px;
+            margin: 0;
+            text-shadow: 0 0 20px var(--success-glow);
+        }
+
+        .state-monitoring {
+            display: block;
+        }
+
+        .state-idle {
+            display: block;
+        }
+
+        .state-monitoring.hidden,
+        .state-idle.hidden,
+        .state-success.hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Web Audio API will be used for a loud siren -->
+
+    <div class="container">
+        <!-- Idle State (Requires interaction) -->
+        <div id="stateIdle" class="state-idle">
+            <h1>Remote Monitor</h1>
+            <p>Waiting for manual start to enable audio permissions and background connection.</p>
+            <button id="startBtn" class="start-btn">Start Monitor</button>
+        </div>
+
+        <!-- Monitoring State -->
+        <div id="stateMonitoring" class="state-monitoring hidden">
+            <h1>Deadline Countdown</h1>
+            <p>Waiting for "Awake" signal...</p>
+
+            <div id="countdownDisplay" class="countdown">00:00:00</div>
+
+            <div id="statusBadge" class="status-badge">Disconnected</div>
+        </div>
+
+        <!-- Success State -->
+        <div id="stateSuccess" class="state-success hidden">
+            <div class="icon">✨</div>
+            <h2>User is Awake!</h2>
+            <p style="color: var(--text-muted); margin-top: 8px;">Alarm successfully disabled.</p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const MQTT_BROKER = 'wss://broker.hivemq.com:8443/mqtt';
+        const TOPIC = 'remote-wake-up-4f91bC2-XyZ-1234';
+
+        // --- PRODUCTION TARGET ---
+        const TARGET_TIME = new Date('2026-03-05T04:30:00-08:00'); // 7:30 AM EST = 4:30 AM PST
+
+        // State
+        let isAwake = false;
+        let alarmTriggered = false;
+        let timerInterval;
+        let client;
+
+        // Elements
+        const stateIdle = document.getElementById('stateIdle');
+        const stateMonitoring = document.getElementById('stateMonitoring');
+        const stateSuccess = document.getElementById('stateSuccess');
+        const startBtn = document.getElementById('startBtn');
+        const countdownDisplay = document.getElementById('countdownDisplay');
+        const statusBadge = document.getElementById('statusBadge');
+
+        // Web Audio API variables
+        let audioCtx;
+        let oscillator1;
+        let oscillator2;
+        let gainNode;
+        let sirenInterval;
+
+        // Number formatter
+        const pad = (num) => num.toString().padStart(2, '0');
+
+        function startMonitor() {
+            // Initialize AudioContext on user interaction
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // Switch UI
+            stateIdle.classList.add('hidden');
+            stateMonitoring.classList.remove('hidden');
+
+            // Connect MQTT
+            initMQTT();
+
+            // Start loop
+            timerInterval = setInterval(checkTime, 1000);
+            checkTime(); // initial call
+        }
+
+        function initMQTT() {
+            client = mqtt.connect(MQTT_BROKER);
+
+            client.on('connect', () => {
+                statusBadge.textContent = 'Listening on HiveMQ';
+                statusBadge.classList.add('connected');
+                client.subscribe(TOPIC, (err) => {
+                    if (err) console.error('Subscribe error:', err);
+                });
+            });
+
+            client.on('message', (topic, message) => {
+                const payload = message.toString();
+                if (payload === 'awake') {
+                    handleAwakeSignal();
+                }
+            });
+
+            client.on('offline', () => {
+                statusBadge.textContent = 'Reconnecting...';
+                statusBadge.classList.remove('connected');
+            });
+        }
+
+        function handleAwakeSignal() {
+            if (isAwake) return;
+            isAwake = true;
+
+            // Stop alarm if playing
+            if (alarmTriggered) {
+                stopSiren();
+                document.body.classList.remove('alarm-active');
+            }
+
+            // Stop timer
+            clearInterval(timerInterval);
+
+            // Update UI
+            stateMonitoring.classList.add('hidden');
+            stateSuccess.classList.remove('hidden');
+        }
+
+        function triggerAlarm() {
+            if (alarmTriggered || isAwake) return;
+            alarmTriggered = true;
+
+            countdownDisplay.textContent = '00:00:00';
+            countdownDisplay.style.background = 'linear-gradient(to right, #fca5a5, #ef4444)';
+            countdownDisplay.style.webkitBackgroundClip = 'text';
+
+            document.body.classList.add('alarm-active');
+
+            // Play loud siren
+            startSiren();
+        }
+
+        function startSiren() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = 1.0; // Max volume
+            gainNode.connect(audioCtx.destination);
+
+            let isHigh = false;
+            sirenInterval = setInterval(() => {
+                if (oscillator1) oscillator1.stop();
+
+                oscillator1 = audioCtx.createOscillator();
+                oscillator1.type = 'square'; // Very harsh and loud waveform
+
+                // Alternating high/low pitch for a European-style siren
+                oscillator1.frequency.value = isHigh ? 1200 : 800;
+
+                oscillator1.connect(gainNode);
+                oscillator1.start();
+
+                isHigh = !isHigh;
+            }, 500); // Toggle every 500ms
+        }
+
+        function stopSiren() {
+            if (sirenInterval) clearInterval(sirenInterval);
+            if (oscillator1) oscillator1.stop();
+            if (oscillator2) oscillator2.stop();
+            if (gainNode) gainNode.disconnect();
+        }
+
+        function checkTime() {
+            if (isAwake || alarmTriggered) return;
+
+            const nowTime = new Date().getTime();
+            const distance = TARGET_TIME.getTime() - nowTime;
+
+            if (distance <= 0) {
+                triggerAlarm();
+                return;
+            }
+
+            // Calculate time left
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            countdownDisplay.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startMonitor);
+
+    </script>
+</body>
+
+</html>
