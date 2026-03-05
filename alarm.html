@@ -11,17 +11,24 @@
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         :root {
-            --bg-color: #020617;
-            --panel-bg: rgba(255, 255, 255, 0.03);
-            --panel-border: rgba(255, 255, 255, 0.08);
-            --primary: #3b82f6;
-            --primary-glow: rgba(59, 130, 246, 0.4);
+            --bg-color: #fdf2f8;
+            /* pink-50 */
+            --panel-bg: rgba(255, 255, 255, 0.7);
+            --panel-border: rgba(244, 114, 182, 0.3);
+            /* pink-400 */
+            --primary: #f472b6;
+            /* pink-400 */
+            --primary-glow: rgba(244, 114, 182, 0.5);
             --danger: #ef4444;
+            /* red-500 */
             --danger-glow: rgba(239, 68, 68, 0.4);
-            --success: #10b981;
-            --success-glow: rgba(16, 185, 129, 0.4);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --success: #ec4899;
+            /* pink-500 */
+            --success-glow: rgba(236, 72, 153, 0.4);
+            --text-main: #831843;
+            /* pink-900 */
+            --text-muted: #be185d;
+            /* pink-700 */
         }
 
         body,
@@ -31,7 +38,7 @@
             width: 100%;
             height: 100%;
             font-family: 'Outfit', sans-serif;
-            background: #020617;
+            background: #fdf2f8;
             color: var(--text-main);
             display: flex;
             justify-content: center;
@@ -42,6 +49,7 @@
 
         body.alarm-active {
             animation: pulse-bg 1s infinite alternate;
+            color: #fff;
         }
 
         @keyframes pulse-bg {
@@ -89,12 +97,13 @@
             line-height: 1;
             margin: 20px 0;
             font-variant-numeric: tabular-nums;
-            background: linear-gradient(to right, #60a5fa, #3b82f6);
+            background: linear-gradient(to right, #f472b6, #db2777);
+            /* pink-400 to pink-600 */
             background-clip: text;
             -webkit-background-clip: text;
             color: transparent;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+            text-shadow: 0 0 30px rgba(244, 114, 182, 0.3);
         }
 
         .start-btn {
@@ -130,9 +139,10 @@
         }
 
         .status-badge.connected {
-            color: #10b981;
-            border-color: rgba(16, 185, 129, 0.3);
-            background: rgba(16, 185, 129, 0.1);
+            color: #db2777;
+            /* pink-600 */
+            border-color: rgba(219, 39, 119, 0.3);
+            background: rgba(219, 39, 119, 0.1);
         }
 
         .state-success {
@@ -203,7 +213,7 @@
         const TOPIC = 'remote-wake-up-4f91bC2-XyZ-1234';
 
         // --- PRODUCTION TARGET ---
-        const TARGET_TIME = new Date('2026-03-05T04:30:00-08:00'); // 7:30 AM EST = 4:30 AM PST
+        const TARGET_TIME = new Date('2026-03-05T04:45:00-08:00'); // 7:45 AM EST = 4:45 AM PST
 
         // State
         let isAwake = false;
